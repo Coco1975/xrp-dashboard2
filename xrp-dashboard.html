@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>XRP Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:     #080c12;
+    --bg2:    #0d1420;
+    --bg3:    #111b2d;
+    --border: #1e2f4a;
+    --accent: #00c8ff;
+    --accent2:#0077aa;
+    --green:  #00e8a0;
+    --red:    #ff3d6b;
+    --yellow: #ffd24d;
+    --orange: #ff7b54;
+    --text:   #c8ddf0;
+    --muted:  #4a6a8a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Rajdhani', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,200,255,0.012) 2px, rgba(0,200,255,0.012) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* HEADER */
+  header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(90deg, #080c12 0%, #0d1a2e 50%, #080c12 100%);
+    position: relative;
+  }
+  header::after {
+    content: '';
+    position: absolute; bottom: -1px; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px; font-weight: 700; color: #fff;
+    box-shadow: 0 0 14px rgba(0,200,255,0.45);
+    letter-spacing: -1px;
+  }
+  .logo-text { font-size: 20px; font-weight: 700; letter-spacing: 4px; color: var(--accent); text-shadow: 0 0 18px rgba(0,200,255,0.5); }
+  .logo-sub  { font-size: 10px; letter-spacing: 3px; color: var(--muted); font-family: 'Share Tech Mono', monospace; margin-top: -2px; }
+  .header-stats { display: flex; gap: 24px; align-items: center; }
+  .hstat { text-align: center; }
+  .hstat-label { font-size: 9px; letter-spacing: 2px; color: var(--muted); font-family: 'Share Tech Mono', monospace; }
+  .hstat-val   { font-size: 17px; font-weight: 700; letter-spacing: 1px; }
+  .hstat-val.up      { color: var(--green); }
+  .hstat-val.down    { color: var(--red); }
+  .hstat-val.neutral { color: var(--accent); }
+  .header-time { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--muted); text-align: right; line-height: 1.7; }
+  .live-dot {
+    display: inline-block; width: 7px; height: 7px;
+    background: var(--green); border-radius: 50%; margin-right: 5px;
+    animation: blink 1.5s infinite; box-shadow: 0 0 7px var(--green);
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }
+
+  /* LAYOUT */
+  .layout {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* CHART AREA */
+  .chart-area {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    min-width: 0;
+  }
+  .chart-controls {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .tf-label { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 2px; color: var(--muted); margin-right: 2px; }
+  .tf-btn {
+    font-family: 'Share Tech Mono', monospace; font-size: 11px;
+    padding: 3px 9px; background: transparent;
+    border: 1px solid var(--border); color: var(--muted);
+    cursor: pointer; letter-spacing: 1px; border-radius: 3px; transition: all .2s;
+  }
+  .tf-btn:hover, .tf-btn.active {
+    border-color: var(--accent); color: var(--accent);
+    background: rgba(0,200,255,0.07); box-shadow: 0 0 8px rgba(0,200,255,0.2);
+  }
+  .indicator-legend { margin-left: auto; display: flex; gap: 14px; }
+  .leg-item { display: flex; align-items: center; gap: 5px; }
+  .leg-line { width: 18px; height: 2px; border-radius: 2px; }
+  .leg-text { font-family: 'Share Tech Mono', monospace; font-size: 10px; }
+
+  .chart-wrap {
+    flex: 1;
+    position: relative;
+    min-height: 0;
+    background: var(--bg2);
+    cursor: crosshair;
+    overflow: hidden;
+  }
+  canvas { display: block; position: absolute; top: 0; left: 0; }
+
+  #tooltip {
+    position: absolute; top: 10px; left: 10px;
+    background: rgba(13,20,32,0.93);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 6px 10px;
+    font-family: 'Share Tech Mono', monospace; font-size: 11px; line-height: 1.8;
+    color: var(--text); pointer-events: none; display: none; z-index: 10;
+  }
+
+  #chart-loading {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Share Tech Mono', monospace; font-size: 13px;
+    letter-spacing: 3px; color: var(--muted);
+    background: var(--bg2); z-index: 20;
+  }
+
+  /* RIGHT PANELS */
+  .right-panels {
+    display: flex; flex-direction: column;
+    overflow-y: auto; overflow-x: hidden;
+    background: var(--bg2);
+  }
+  .right-panels::-webkit-scrollbar { width: 4px; }
+  .right-panels::-webkit-scrollbar-track { background: var(--bg); }
+  .right-panels::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .panel-title {
+    font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 3px; color: var(--muted);
+    padding: 9px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg3); flex-shrink: 0;
+  }
+  .panel-title span { color: var(--accent); }
+  .panel-title .psub { color: var(--muted); font-size: 9px; }
+
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); flex-shrink: 0; }
+  .stat-cell  { background: var(--bg2); padding: 10px 12px; }
+  .stat-label { font-size: 9px; letter-spacing: 2px; color: var(--muted); font-family: 'Share Tech Mono', monospace; margin-bottom: 3px; }
+  .stat-val   { font-size: 15px; font-weight: 700; }
+  .stat-val.up      { color: var(--green); }
+  .stat-val.down    { color: var(--red); }
+  .stat-val.neutral { color: var(--accent); }
+
+  .signal-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 14px; border-bottom: 1px solid rgba(30,47,74,0.5); }
+  .signal-name  { color: var(--muted); font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 1px; }
+  .signal-badge { font-size: 10px; font-family: 'Share Tech Mono', monospace; padding: 2px 7px; border-radius: 2px; letter-spacing: 1px; }
+  .badge-bull    { background: rgba(0,232,160,0.15); color: var(--green);  border: 1px solid rgba(0,232,160,0.3); }
+  .badge-bear    { background: rgba(255,61,107,0.15); color: var(--red);   border: 1px solid rgba(255,61,107,0.3); }
+  .badge-neutral { background: rgba(255,210,77,0.15); color: var(--yellow);border: 1px solid rgba(255,210,77,0.3); }
+
+  .fg-meter { padding: 10px 14px 14px; }
+  .fg-value { text-align: center; font-size: 28px; font-weight: 700; color: var(--yellow); }
+  .fg-label-text { text-align: center; font-size: 10px; letter-spacing: 2px; color: var(--muted); font-family: 'Share Tech Mono', monospace; margin-top: 2px; }
+  .fg-bar-bg { height: 7px; border-radius: 4px; background: linear-gradient(90deg, var(--red) 0%, var(--yellow) 50%, var(--green) 100%); position: relative; margin: 10px 0 4px; }
+  .fg-needle { position: absolute; top: -4px; width: 3px; height: 15px; background: #fff; border-radius: 2px; transform: translateX(-50%); box-shadow: 0 0 7px rgba(255,255,255,0.9); transition: left 1s ease; }
+  .fg-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); font-family: 'Share Tech Mono', monospace; }
+
+  .notes-pad {
+    width: 100%; background: var(--bg3); border: none; border-top: 1px solid var(--border);
+    color: var(--text); font-family: 'Share Tech Mono', monospace; font-size: 11px;
+    line-height: 1.7; padding: 10px 14px; resize: none; outline: none; height: 80px;
+  }
+  .notes-pad::placeholder { color: var(--muted); }
+
+  .news-list { overflow-y: auto; padding: 6px; min-height: 140px; }
+  .news-list::-webkit-scrollbar { width: 3px; }
+  .news-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .news-item {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 5px;
+    background: var(--bg3); position: relative; overflow: hidden;
+  }
+  .news-item::before { content:''; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--accent); opacity:0; transition:.2s; }
+  .news-item:hover { border-color: var(--accent2); background: rgba(0,200,255,0.04); }
+  .news-item:hover::before { opacity:1; }
+  .news-item a { color: var(--text); text-decoration: none; font-size: 12px; font-weight: 500; line-height: 1.4; display: block; }
+  .news-item a:hover { color: var(--accent); }
+  .news-meta { display: flex; gap: 6px; align-items: center; margin-bottom: 3px; }
+  .news-source { font-size: 9px; font-family: 'Share Tech Mono', monospace; color: var(--accent); letter-spacing: 1px; }
+  .news-type   { font-size: 8px; font-family: 'Share Tech Mono', monospace; padding: 1px 5px; border-radius: 2px; letter-spacing: 1px; }
+  .type-news     { background: rgba(0,200,255,0.15); color: var(--accent);  border: 1px solid rgba(0,200,255,0.3); }
+  .type-social   { background: rgba(0,232,160,0.15); color: var(--green);   border: 1px solid rgba(0,232,160,0.3); }
+  .type-analysis { background: rgba(255,210,77,0.15); color: var(--yellow); border: 1px solid rgba(255,210,77,0.3); }
+  .news-date { font-size: 9px; color: var(--muted); font-family: 'Share Tech Mono', monospace; margin-left: auto; }
+  .news-delete {
+    position: absolute; top: 5px; right: 5px; width: 16px; height: 16px;
+    background: rgba(255,61,107,0.15); border: 1px solid rgba(255,61,107,0.3); border-radius: 2px;
+    display: none; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 9px; color: var(--red); z-index: 2;
+  }
+  .news-item:hover .news-delete { display: flex; }
+
+  .add-btn {
+    display: flex; align-items: center; gap: 5px;
+    font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 1px;
+    color: var(--accent); background: transparent; border: 1px dashed var(--accent2);
+    padding: 4px 10px; border-radius: 3px; cursor: pointer; transition: all .2s;
+  }
+  .add-btn:hover { background: rgba(0,200,255,0.07); border-color: var(--accent); }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(8,12,18,0.88); z-index: 1000;
+    align-items: center; justify-content: center; backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg2); border: 1px solid var(--accent); border-radius: 8px;
+    padding: 26px; width: min(400px, 92vw);
+    box-shadow: 0 0 40px rgba(0,200,255,0.15);
+    animation: modalIn .25s ease;
+  }
+  @keyframes modalIn { from{transform:translateY(-18px);opacity:0} to{transform:translateY(0);opacity:1} }
+  .modal h3 { font-size: 14px; letter-spacing: 3px; color: var(--accent); margin-bottom: 18px; font-family: 'Share Tech Mono', monospace; }
+  .form-group { margin-bottom: 12px; }
+  .form-group label { display:block; font-size:10px; letter-spacing:2px; color:var(--muted); font-family:'Share Tech Mono',monospace; margin-bottom:5px; }
+  .form-group input, .form-group select {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    padding: 9px 11px; font-family: 'Share Tech Mono', monospace; font-size: 12px;
+    border-radius: 4px; outline: none; transition: border-color .2s;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+  .form-group select option { background: var(--bg3); }
+  .modal-buttons { display:flex; gap:8px; margin-top:18px; justify-content:flex-end; }
+  .btn { padding:7px 18px; font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:2px; border-radius:4px; cursor:pointer; transition:all .2s; border:1px solid; }
+  .btn-primary { background:var(--accent); border-color:var(--accent); color:#000; font-weight:700; }
+  .btn-primary:hover { background:#00a8d8; box-shadow:0 0 14px rgba(0,200,255,0.4); }
+  .btn-ghost { background:transparent; border-color:var(--border); color:var(--muted); }
+  .btn-ghost:hover { border-color:var(--muted); color:var(--text); }
+
+  @media (max-width:700px) {
+    body { height:auto; overflow:auto; }
+    .layout { grid-template-columns:1fr; grid-template-rows:55vh auto; overflow-y:auto; }
+    .chart-area { border-right:none; border-bottom:1px solid var(--border); }
+    .right-panels { overflow-y:visible; }
+    .header-stats { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">XRP</div>
+    <div>
+      <div class="logo-text">XRP</div>
+      <div class="logo-sub">COMMAND CENTER</div>
+    </div>
+  </div>
+  <div class="header-stats">
+    <div class="hstat"><div class="hstat-label">PRICE</div><div class="hstat-val neutral" id="h-price">—</div></div>
+    <div class="hstat"><div class="hstat-label">24H CHANGE</div><div class="hstat-val neutral" id="h-change">—</div></div>
+    <div class="hstat"><div class="hstat-label">24H VOLUME</div><div class="hstat-val neutral" id="h-vol">—</div></div>
+    <div class="hstat"><div class="hstat-label">24H HIGH</div><div class="hstat-val up" id="h-high">—</div></div>
+    <div class="hstat"><div class="hstat-label">24H LOW</div><div class="hstat-val down" id="h-low">—</div></div>
+  </div>
+  <div class="header-time">
+    <div><span class="live-dot"></span><span id="clock-time">--:--:--</span></div>
+    <div id="clock-date" style="font-size:10px;"></div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- LEFT: CHART -->
+  <div class="chart-area">
+    <div class="chart-controls">
+      <span class="tf-label">TF:</span>
+      <button class="tf-btn" onclick="setTF(this,'4h',200)">4H</button>
+      <button class="tf-btn active" onclick="setTF(this,'1d',365)">DAILY</button>
+      <button class="tf-btn" onclick="setTF(this,'1w',104)">1W</button>
+      <button class="tf-btn" onclick="setTF(this,'1M',36)">1M</button>
+      <div class="indicator-legend">
+        <div class="leg-item"><div class="leg-line" style="background:#ffd24d"></div><span class="leg-text" style="color:#ffd24d">EMA20</span></div>
+        <div class="leg-item"><div class="leg-line" style="background:#00c8ff"></div><span class="leg-text" style="color:#00c8ff">EMA50</span></div>
+        <div class="leg-item"><div class="leg-line" style="background:#ff7b54"></div><span class="leg-text" style="color:#ff7b54">EMA200</span></div>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap">
+      <div id="chart-loading">LOADING MARKET DATA…</div>
+      <canvas id="chart-canvas"></canvas>
+      <div id="tooltip"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANELS -->
+  <div class="right-panels">
+    <div>
+      <div class="panel-title"><span>MARKET STATS</span><span class="psub">XRP/USDT</span></div>
+      <div class="stats-grid">
+        <div class="stat-cell"><div class="stat-label">PRICE</div><div class="stat-val neutral" id="s-price">—</div></div>
+        <div class="stat-cell"><div class="stat-label">24H %</div><div class="stat-val neutral" id="s-change">—</div></div>
+        <div class="stat-cell"><div class="stat-label">24H HIGH</div><div class="stat-val up" id="s-high">—</div></div>
+        <div class="stat-cell"><div class="stat-label">24H LOW</div><div class="stat-val down" id="s-low">—</div></div>
+        <div class="stat-cell"><div class="stat-label">VOLUME</div><div class="stat-val neutral" id="s-vol">—</div></div>
+        <div class="stat-cell"><div class="stat-label">MKT CAP</div><div class="stat-val neutral" id="s-mcap">—</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="panel-title"><span>SIGNALS</span></div>
+      <div class="signal-row"><span class="signal-name">EMA20 vs EMA50</span><span class="signal-badge badge-neutral" id="sig-ema2050">—</span></div>
+      <div class="signal-row"><span class="signal-name">PRICE vs EMA200</span><span class="signal-badge badge-neutral" id="sig-ema200">—</span></div>
+      <div class="signal-row"><span class="signal-name">TREND ALIGNMENT</span><span class="signal-badge badge-neutral" id="sig-trend">—</span></div>
+      <div class="signal-row"><span class="signal-name">FEAR & GREED</span><span class="signal-badge badge-neutral" id="sig-fg">—</span></div>
+    </div>
+    <div>
+      <div class="panel-title"><span>FEAR & GREED INDEX</span></div>
+      <div class="fg-meter">
+        <div class="fg-value" id="fg-value">—</div>
+        <div class="fg-label-text" id="fg-label">LOADING…</div>
+        <div class="fg-bar-bg"><div class="fg-needle" id="fg-needle" style="left:50%"></div></div>
+        <div class="fg-labels"><span>FEAR</span><span>NEUTRAL</span><span>GREED</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="panel-title"><span>TRADE NOTES</span></div>
+      <textarea class="notes-pad" id="notes-pad" placeholder="Add your analysis, price targets, ideas... (auto-saved)"></textarea>
+    </div>
+    <div style="display:flex;flex-direction:column;">
+      <div class="panel-title">
+        <span>NEWS & LINKS</span>
+        <button class="add-btn" onclick="openModal()">+ ADD LINK</button>
+      </div>
+      <div class="news-list" id="news-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <h3>// ADD LINK</h3>
+    <div class="form-group"><label>TITLE / HEADLINE</label><input type="text" id="link-title" placeholder="e.g. XRP SEC Case Update..."></div>
+    <div class="form-group"><label>URL</label><input type="url" id="link-url" placeholder="https://..."></div>
+    <div class="form-group"><label>SOURCE</label><input type="text" id="link-source" placeholder="e.g. CoinTelegraph, Twitter..."></div>
+    <div class="form-group"><label>TYPE</label>
+      <select id="link-type"><option value="news">NEWS</option><option value="social">SOCIAL</option><option value="analysis">ANALYSIS</option></select>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-ghost" onclick="closeModal()">CANCEL</button>
+      <button class="btn btn-primary" onclick="addLink()">ADD LINK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+'use strict';
+
+// ── CLOCK ──────────────────────────────────────────────────
+function updateClock() {
+  var now = new Date();
+  var te = document.getElementById('clock-time');
+  var de = document.getElementById('clock-date');
+  if (te) te.textContent = now.toLocaleTimeString('en-GB');
+  if (de) de.textContent = now.toLocaleDateString('en-GB', {weekday:'short', year:'numeric', month:'short', day:'numeric'});
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── CANVAS CHART ENGINE ────────────────────────────────────
+var canvas, ctx, wrap;
+var allCandles = [];
+var viewStart = 0, viewEnd = 0;
+var isDragging = false, dragStartX = 0, dragStartView = 0;
+var pinchStartDist = 0, pinchStartCount = 0;
+var dpr = window.devicePixelRatio || 1;
+
+var PAD = { top: 16, right: 62, bottom: 30, volFrac: 0.18 };
+var COLOR = {
+  BG:'#0d1420', GRID:'rgba(30,47,74,0.65)',
+  UP:'#00e8a0', DOWN:'#ff3d6b',
+  VOLUP:'rgba(0,232,160,0.2)', VOLDN:'rgba(255,61,107,0.2)',
+  EMA20:'#ffd24d', EMA50:'#00c8ff', EMA200:'#ff7b54',
+  TEXT:'#4a6a8a', CROSS:'rgba(0,200,255,0.55)'
+};
+
+function initCanvas() {
+  canvas = document.getElementById('chart-canvas');
+  wrap   = document.getElementById('chart-wrap');
+  if (!canvas || !wrap) return;
+  ctx = canvas.getContext('2d');
+  sizeCanvas();
+
+  // Observe resize
+  if (window.ResizeObserver) {
+    new ResizeObserver(sizeCanvas).observe(wrap);
+  } else {
+    window.addEventListener('resize', sizeCanvas);
+  }
+
+  canvas.addEventListener('mousemove',  onMouseMove);
+  canvas.addEventListener('mouseleave', onMouseLeave);
+  canvas.addEventListener('mousedown',  onDragStart);
+  window.addEventListener('mouseup',    function(){ isDragging = false; });
+  canvas.addEventListener('wheel',      onWheel, {passive:false});
+  canvas.addEventListener('touchstart', onTouchStart, {passive:true});
+  canvas.addEventListener('touchmove',  onTouchMove,  {passive:false});
+  canvas.addEventListener('touchend',   function(){ isDragging = false; });
+}
+
+function sizeCanvas() {
+  if (!canvas || !wrap) return;
+  var w = wrap.clientWidth || 300;
+  var h = wrap.clientHeight || 400;
+  canvas.style.width  = w + 'px';
+  canvas.style.height = h + 'px';
+  canvas.width  = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawChart();
+}
+
+function W() { return canvas.width  / dpr; }
+function H() { return canvas.height / dpr; }
+
+function calcEMA(data, period) {
+  var n = data.length;
+  if (n < period) return [];
+  var out = new Array(n).fill(null);
+  var sum = 0;
+  for (var i = 0; i < period; i++) sum += data[i].close;
+  var ema = sum / period;
+  out[period - 1] = ema;
+  var k = 2 / (period + 1);
+  for (var j = period; j < n; j++) {
+    ema = data[j].close * k + ema * (1 - k);
+    out[j] = ema;
+  }
+  return out;
+}
+
+function priceToY(p, minP, maxP, priceTop, priceH) {
+  return priceTop + priceH - ((p - minP) / (maxP - minP)) * priceH;
+}
+
+function idxToX(i, vStart, vEnd) {
+  var chartW = W() - PAD.right;
+  var count  = vEnd - vStart;
+  return ((i - vStart + 0.5) / count) * chartW;
+}
+
+function drawChart() {
+  if (!canvas || !ctx || !allCandles.length) return;
+  var w = W(), h = H();
+  var vStart = Math.max(0, Math.floor(viewStart));
+  var vEnd   = Math.min(allCandles.length, Math.ceil(viewEnd));
+  if (vEnd <= vStart) return;
+
+  var priceH = h * (1 - PAD.volFrac) - PAD.top - PAD.bottom;
+  var volH   = h * PAD.volFrac;
+  var priceTop = PAD.top;
+  var volTop   = h - volH;
+  var chartW   = w - PAD.right;
+
+  // Price range
+  var minP = Infinity, maxP = -Infinity;
+  for (var i = vStart; i < vEnd; i++) {
+    if (allCandles[i].low  < minP) minP = allCandles[i].low;
+    if (allCandles[i].high > maxP) maxP = allCandles[i].high;
+  }
+  var pad = (maxP - minP) * 0.06;
+  minP -= pad; maxP += pad;
+  if (maxP <= minP) { maxP = minP + 0.01; }
+
+  var maxVol = 0;
+  for (var i = vStart; i < vEnd; i++) {
+    if (allCandles[i].volume > maxVol) maxVol = allCandles[i].volume;
+  }
+  if (maxVol === 0) maxVol = 1;
+
+  // BG
+  ctx.fillStyle = COLOR.BG;
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid + price labels
+  ctx.strokeStyle = COLOR.GRID;
+  ctx.lineWidth   = 0.5;
+  ctx.fillStyle   = COLOR.TEXT;
+  ctx.font        = '10px monospace';
+  ctx.textAlign   = 'right';
+  var gridN = 5;
+  for (var g = 0; g <= gridN; g++) {
+    var gy = priceTop + (priceH / gridN) * g;
+    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(chartW, gy); ctx.stroke();
+    var gp = maxP - ((maxP - minP) / gridN) * g;
+    ctx.fillText(gp.toFixed(4), w - 4, gy + 3);
+  }
+
+  // Vol separator
+  ctx.strokeStyle = COLOR.GRID; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, volTop); ctx.lineTo(chartW, volTop); ctx.stroke();
+
+  // Time labels
+  var labelEvery = Math.max(1, Math.floor((vEnd - vStart) / 7));
+  ctx.fillStyle = COLOR.TEXT; ctx.textAlign = 'center';
+  for (var i = vStart; i < vEnd; i += labelEvery) {
+    var d = new Date(allCandles[i].time * 1000);
+    var lbl = d.toLocaleDateString('en-GB', {day:'2-digit', month:'short'});
+    ctx.fillText(lbl, idxToX(i, vStart, vEnd), h - 6);
+  }
+
+  var barW = Math.max(1, (chartW / (vEnd - vStart)) * 0.7);
+
+  // EMAs
+  var ema20  = calcEMA(allCandles, 20);
+  var ema50  = calcEMA(allCandles, 50);
+  var ema200 = calcEMA(allCandles, 200);
+
+  function drawEMA(arr, col, lw) {
+    ctx.strokeStyle = col; ctx.lineWidth = lw;
+    ctx.beginPath();
+    var started = false;
+    for (var i = vStart; i < vEnd; i++) {
+      if (arr[i] === null || arr[i] === undefined) continue;
+      var ex = idxToX(i, vStart, vEnd);
+      var ey = priceToY(arr[i], minP, maxP, priceTop, priceH);
+      if (!started) { ctx.moveTo(ex, ey); started = true; }
+      else           ctx.lineTo(ex, ey);
+    }
+    ctx.stroke();
+  }
+  drawEMA(ema200, COLOR.EMA200, 1.8);
+  drawEMA(ema50,  COLOR.EMA50,  1.4);
+  drawEMA(ema20,  COLOR.EMA20,  1.4);
+
+  // Volume bars
+  for (var i = vStart; i < vEnd; i++) {
+    var c  = allCandles[i];
+    var vx = idxToX(i, vStart, vEnd);
+    var vy = volTop + volH - (c.volume / maxVol) * volH * 0.88;
+    ctx.fillStyle = c.close >= c.open ? COLOR.VOLUP : COLOR.VOLDN;
+    ctx.fillRect(vx - barW / 2, vy, barW, volTop - vy);
+  }
+
+  // Candles
+  for (var i = vStart; i < vEnd; i++) {
+    var c   = allCandles[i];
+    var cx  = idxToX(i, vStart, vEnd);
+    var col = c.close >= c.open ? COLOR.UP : COLOR.DOWN;
+    var oY  = priceToY(c.open,  minP, maxP, priceTop, priceH);
+    var cY  = priceToY(c.close, minP, maxP, priceTop, priceH);
+    var hY  = priceToY(c.high,  minP, maxP, priceTop, priceH);
+    var lY  = priceToY(c.low,   minP, maxP, priceTop, priceH);
+    var bTop = Math.min(oY, cY);
+    var bH   = Math.max(1, Math.abs(cY - oY));
+
+    ctx.strokeStyle = col; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx, hY); ctx.lineTo(cx, lY); ctx.stroke();
+    ctx.fillStyle = col;
+    ctx.fillRect(cx - barW / 2, bTop, barW, bH);
+  }
+
+  // Last price dashed line + label
+  if (vEnd > 0) {
+    var lc  = allCandles[vEnd - 1];
+    var ly  = priceToY(lc.close, minP, maxP, priceTop, priceH);
+    var lco = lc.close >= lc.open ? COLOR.UP : COLOR.DOWN;
+    ctx.strokeStyle = lco; ctx.lineWidth = 0.8;
+    ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(chartW, ly); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = lco;
+    ctx.fillRect(chartW, ly - 9, PAD.right, 18);
+    ctx.fillStyle = '#000'; ctx.textAlign = 'center';
+    ctx.font = 'bold 9px monospace';
+    ctx.fillText(lc.close.toFixed(4), chartW + PAD.right / 2, ly + 3);
+  }
+}
+
+// Crosshair
+function showCrosshair(mx, my) {
+  if (!allCandles.length) return;
+  var w = W(), h = H();
+  var chartW  = w - PAD.right;
+  var count   = viewEnd - viewStart;
+  var idx     = Math.round((mx / chartW) * count + viewStart - 0.5);
+  var ci      = Math.max(0, Math.min(allCandles.length - 1
