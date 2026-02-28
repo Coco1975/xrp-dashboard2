@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CCD Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#080c12;--bg2:#0d1420;--bg3:#111b2d;--border:#1e2f4a;--ac:#e8823a;--ac2:#c0601a;--green:#00e8a0;--red:#ff3d6b;--yellow:#ffd24d;--text:#c8ddf0;--muted:#4a6a8a;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,200,255,0.008) 2px,rgba(0,200,255,0.008) 4px);}
+header{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid var(--border);background:linear-gradient(90deg,#080c12,#0d1a2e,#080c12);position:relative;z-index:100;}
+header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#e8823a,transparent);}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:36px;height:36px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace;font-size:11px;font-weight:700;color:#fff;background:linear-gradient(135deg,#e8823a,#c0601a);box-shadow:0 0 14px #e8823a66;}
+.logo-text{font-size:20px;font-weight:700;letter-spacing:4px;color:var(--ac);text-shadow:0 0 18px #e8823a80;}
+.logo-sub{font-size:10px;letter-spacing:3px;color:var(--muted);font-family:'Share Tech Mono',monospace;margin-top:-2px;}
+.hstats{display:flex;gap:20px;align-items:center;}
+.hstat{text-align:center;}
+.hstat-lbl{font-size:9px;letter-spacing:2px;color:var(--muted);font-family:'Share Tech Mono',monospace;}
+.hstat-val{font-size:16px;font-weight:700;}
+.up{color:var(--green)!important;}.down{color:var(--red)!important;}.neutral{color:var(--ac)!important;}
+.htime{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted);text-align:right;line-height:1.7;}
+.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;background:var(--green);box-shadow:0 0 7px var(--green);animation:blink 1.5s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.15}}
+.layout{flex:1;display:grid;grid-template-columns:1fr 300px;min-height:0;overflow:hidden;}
+.chart-area{display:flex;flex-direction:column;border-right:1px solid var(--border);min-width:0;min-height:0;overflow:hidden;}
+.chart-info{flex-shrink:0;display:flex;align-items:center;gap:12px;padding:7px 14px;background:var(--bg3);border-bottom:1px solid var(--border);z-index:50;}
+.ci-lbl{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);}
+.ci-val{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--ac);}
+.legend{margin-left:auto;display:flex;gap:10px;}
+.leg{display:flex;align-items:center;gap:4px;}
+.leg-line{width:14px;height:2px;border-radius:2px;}
+.leg-txt{font-family:'Share Tech Mono',monospace;font-size:9px;}
+.back-btn{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);background:transparent;border:1px solid var(--border);padding:4px 10px;border-radius:3px;cursor:pointer;text-decoration:none;transition:all .2s;}
+.back-btn:hover{color:var(--ac);border-color:var(--ac);}
+.chart-wrap{flex:1;position:relative;min-height:0;overflow:hidden;background:var(--bg2);cursor:crosshair;}
+#cv{display:block;position:absolute;top:0;left:0;width:100%!important;height:100%!important;z-index:1;}
+#tip{position:absolute;z-index:5;display:none;pointer-events:none;background:rgba(13,20,32,0.95);border:1px solid var(--border);border-radius:4px;padding:6px 10px;font-family:'Share Tech Mono',monospace;font-size:11px;line-height:1.8;color:var(--text);}
+#loading{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg2);font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:3px;color:var(--muted);}
+.spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--ac);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* RSI panel */
+.rsi-panel{flex-shrink:0;height:72px;position:relative;border-top:1px solid var(--border);background:var(--bg2);}
+#rsi-cv{display:block;position:absolute;top:0;left:0;width:100%!important;height:100%!important;}
+/* Right panel */
+.right{display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;background:var(--bg2);}
+.right::-webkit-scrollbar{width:4px;}.right::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.ptitle{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--muted);padding:8px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg3);flex-shrink:0;}
+.ptitle .pn{color:var(--ac);}.ptitle .ps{color:var(--muted);font-size:9px;}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);}
+.sc{background:var(--bg2);padding:9px 12px;}
+.slbl{font-size:9px;letter-spacing:2px;color:var(--muted);font-family:'Share Tech Mono',monospace;margin-bottom:2px;}
+.sval{font-size:15px;font-weight:700;}
+/* Holdings */
+.hold-wrap{padding:10px 14px;}
+.hold-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.hold-lbl{font-size:9px;letter-spacing:2px;color:var(--muted);font-family:'Share Tech Mono',monospace;width:56px;flex-shrink:0;}
+.hold-inp{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:13px;padding:6px 10px;border-radius:3px;outline:none;transition:border-color .2s;}
+.hold-inp:focus{border-color:var(--ac);}
+.hold-total{font-size:22px;font-weight:700;color:var(--ac);text-align:center;padding:6px 0 2px;font-family:'Share Tech Mono',monospace;}
+.hold-sub{text-align:center;font-size:9px;letter-spacing:2px;color:var(--muted);font-family:'Share Tech Mono',monospace;padding-bottom:4px;}
+/* Alerts */
+.al-wrap{padding:8px 14px;}
+.al-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.al-inp{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;padding:5px 8px;border-radius:3px;outline:none;}
+.al-inp:focus{border-color:var(--ac);}
+.al-sel{background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:11px;padding:5px 6px;border-radius:3px;outline:none;width:60px;}
+.al-btn{background:var(--ac);border:none;color:#000;font-family:'Share Tech Mono',monospace;font-size:11px;padding:5px 10px;border-radius:3px;cursor:pointer;font-weight:700;letter-spacing:1px;}
+.al-list{max-height:88px;overflow-y:auto;}
+.al-item{display:flex;align-items:center;gap:6px;padding:4px 6px;background:var(--bg3);border-radius:3px;margin-bottom:3px;font-family:'Share Tech Mono',monospace;font-size:11px;}
+.al-type{font-size:9px;padding:1px 5px;border-radius:2px;}
+.al-buy{background:rgba(0,232,160,0.2);color:var(--green);}
+.al-sell{background:rgba(255,61,107,0.2);color:var(--red);}
+.al-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;margin-left:auto;}
+.al-del:hover{color:var(--red);}
+/* Signals */
+.sigrow{display:flex;align-items:center;justify-content:space-between;padding:6px 14px;border-bottom:1px solid rgba(30,47,74,0.5);}
+.sign{color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;}
+.badge{font-size:10px;font-family:'Share Tech Mono',monospace;padding:2px 7px;border-radius:2px;letter-spacing:1px;}
+.bull{background:rgba(0,232,160,0.15);color:var(--green);border:1px solid rgba(0,232,160,0.3);}
+.bear{background:rgba(255,61,107,0.15);color:var(--red);border:1px solid rgba(255,61,107,0.3);}
+.neut{background:rgba(255,210,77,0.15);color:var(--yellow);border:1px solid rgba(255,210,77,0.3);}
+/* Correlation */
+.corr-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);}
+.corr-cell{background:var(--bg2);padding:8px 12px;}
+.corr-sym{font-size:9px;letter-spacing:2px;color:var(--muted);font-family:'Share Tech Mono',monospace;}
+.corr-p{font-size:14px;font-weight:700;margin:2px 0;}
+.corr-chg{font-size:11px;font-family:'Share Tech Mono',monospace;}
+/* FG */
+.fg-wrap{padding:10px 14px 12px;}
+.fg-num{text-align:center;font-size:26px;font-weight:700;}
+.fg-lbl{text-align:center;font-size:10px;letter-spacing:2px;color:var(--muted);font-family:'Share Tech Mono',monospace;margin-top:2px;}
+.fg-bar{height:7px;border-radius:4px;background:linear-gradient(90deg,var(--red),var(--yellow) 50%,var(--green));position:relative;margin:10px 0 4px;}
+.fg-pin{position:absolute;top:-4px;width:3px;height:15px;background:#fff;border-radius:2px;transform:translateX(-50%);box-shadow:0 0 7px rgba(255,255,255,.9);transition:left 1s ease;}
+.fg-ends{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);font-family:'Share Tech Mono',monospace;}
+/* Notes */
+.notes{width:100%;background:var(--bg3);border:none;border-top:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:11px;line-height:1.7;padding:10px 14px;resize:none;outline:none;height:70px;}
+.notes::placeholder{color:var(--muted);}
+/* News */
+.nlist{overflow-y:auto;padding:6px;max-height:200px;}
+.nlist::-webkit-scrollbar{width:3px;}.nlist::-webkit-scrollbar-thumb{background:var(--border);}
+.nitem{padding:7px 10px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;background:var(--bg3);position:relative;}
+.nitem::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--ac);opacity:0;transition:.2s;}
+.nitem:hover::before{opacity:1;}.nitem:hover{border-color:#c0601a;}
+.nitem a{color:var(--text);text-decoration:none;font-size:12px;font-weight:500;line-height:1.4;display:block;}
+.nitem a:hover{color:var(--ac);}
+.nmeta{display:flex;gap:6px;align-items:center;margin-bottom:3px;flex-wrap:wrap;}
+.nsrc{font-size:9px;font-family:'Share Tech Mono',monospace;color:var(--ac);letter-spacing:1px;}
+.ntype{font-size:8px;font-family:'Share Tech Mono',monospace;padding:1px 5px;border-radius:2px;letter-spacing:1px;}
+.t-news{background:rgba(0,200,255,0.15);color:#00c8ff;border:1px solid rgba(0,200,255,0.3);}
+.t-social{background:rgba(0,232,160,0.15);color:var(--green);border:1px solid rgba(0,232,160,0.3);}
+.t-analysis{background:rgba(255,210,77,0.15);color:var(--yellow);border:1px solid rgba(255,210,77,0.3);}
+.ndate{font-size:9px;color:var(--muted);font-family:'Share Tech Mono',monospace;margin-left:auto;}
+.ndel{position:absolute;top:5px;right:5px;width:16px;height:16px;background:rgba(255,61,107,0.15);border:1px solid rgba(255,61,107,0.3);border-radius:2px;display:none;align-items:center;justify-content:center;cursor:pointer;font-size:9px;color:var(--red);}
+.nitem:hover .ndel{display:flex;}
+.add-btn{display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--ac);background:transparent;border:1px dashed #c0601a;padding:4px 10px;border-radius:3px;cursor:pointer;}
+.add-btn:hover{background:#e8823a11;border-color:var(--ac);}
+/* Modal */
+.mbg{display:none;position:fixed;inset:0;background:rgba(8,12,18,.88);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.mbg.open{display:flex;}
+.mbox{background:var(--bg2);border:1px solid var(--ac);border-radius:8px;padding:26px;width:min(400px,92vw);box-shadow:0 0 40px #e8823a26;animation:mIn .25s ease;}
+@keyframes mIn{from{transform:translateY(-18px);opacity:0}to{transform:translateY(0);opacity:1}}
+.mbox h3{font-size:14px;letter-spacing:3px;color:var(--ac);margin-bottom:18px;font-family:'Share Tech Mono',monospace;}
+.fgg{margin-bottom:12px;}
+.fgg label{display:block;font-size:10px;letter-spacing:2px;color:var(--muted);font-family:'Share Tech Mono',monospace;margin-bottom:5px;}
+.fgg input,.fgg select{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 10px;font-family:'Share Tech Mono',monospace;font-size:12px;border-radius:4px;outline:none;}
+.fgg input:focus,.fgg select:focus{border-color:var(--ac);}
+.fgg select option{background:var(--bg3);}
+.mbtns{display:flex;gap:8px;margin-top:16px;justify-content:flex-end;}
+.btn{padding:7px 16px;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;border-radius:4px;cursor:pointer;border:1px solid;transition:all .2s;}
+.btnp{background:var(--ac);border-color:var(--ac);color:#000;font-weight:700;}
+.btng{background:transparent;border-color:var(--border);color:var(--muted);}
+@media(max-width:700px){body{height:auto;overflow:auto;}.layout{grid-template-columns:1fr;grid-template-rows:50vh auto;overflow-y:auto;}.chart-area{border-right:none;border-bottom:1px solid var(--border);}.hstats{display:none;}.right{overflow-y:visible;}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-icon">CCD</div>
+    <div><div class="logo-text">CCD</div><div class="logo-sub">COMMAND CENTER</div></div>
+  </div>
+  <div class="hstats">
+    <div class="hstat"><div class="hstat-lbl">PRICE</div><div class="hstat-val neutral" id="h-price">—</div></div>
+    <div class="hstat"><div class="hstat-lbl">24H CHANGE</div><div class="hstat-val" id="h-chg">—</div></div>
+    <div class="hstat"><div class="hstat-lbl">24H HIGH</div><div class="hstat-val up" id="h-high">—</div></div>
+    <div class="hstat"><div class="hstat-lbl">24H LOW</div><div class="hstat-val down" id="h-low">—</div></div>
+    <div class="hstat"><div class="hstat-lbl">VOLUME</div><div class="hstat-val neutral" id="h-vol">—</div></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="htime"><div><span class="live-dot"></span><span id="clock">--:--:--</span></div><div id="cdate" style="font-size:10px;"></div></div>
+  </div>
+</header>
+<div class="layout">
+  <div class="chart-area">
+    <div class="chart-info">
+      <span class="ci-lbl">TF:</span><span class="ci-val">DAILY · 1Y</span>
+      <div class="legend">
+        <div class="leg"><div class="leg-line" style="background:#ffd24d"></div><span class="leg-txt" style="color:#ffd24d">EMA20</span></div>
+        <div class="leg"><div class="leg-line" style="background:#00c8ff"></div><span class="leg-txt" style="color:#00c8ff">EMA50</span></div>
+        <div class="leg"><div class="leg-line" style="background:#ff7b54"></div><span class="leg-txt" style="color:#ff7b54">EMA200</span></div>
+      </div>
+      <a href="index.html" class="back-btn">← HOME</a>
+    </div>
+    <div class="chart-wrap" id="wrap">
+      <div id="loading"><div class="spinner"></div>LOADING…</div>
+      <canvas id="cv"></canvas>
+      <div id="tip"></div>
+    </div>
+    <div class="rsi-panel"><canvas id="rsi-cv"></canvas></div>
+  </div>
+  <div class="right">
+    <div><div class="ptitle"><span class="pn">MARKET STATS</span><span class="ps">CCD/USD</span></div>
+    <div class="sgrid">
+      <div class="sc"><div class="slbl">PRICE</div><div class="sval neutral" id="s-price">—</div></div>
+      <div class="sc"><div class="slbl">24H %</div><div class="sval" id="s-chg">—</div></div>
+      <div class="sc"><div class="slbl">24H HIGH</div><div class="sval up" id="s-high">—</div></div>
+      <div class="sc"><div class="slbl">24H LOW</div><div class="sval down" id="s-low">—</div></div>
+      <div class="sc"><div class="slbl">VOLUME</div><div class="sval neutral" id="s-vol">—</div></div>
+      <div class="sc"><div class="slbl">MKT CAP</div><div class="sval neutral" id="s-mcap">—</div></div>
+    </div></div>
+    <div><div class="ptitle"><span class="pn">MY HOLDINGS</span></div>
+    <div class="hold-wrap">
+      <div class="hold-row"><span class="hold-lbl">AMOUNT</span><input class="hold-inp" type="number" id="hold-amt" placeholder="0.00" min="0" step="any"></div>
+      <div class="hold-total" id="hold-total">$0.00</div>
+      <div class="hold-sub">VALUE AT CURRENT PRICE</div>
+    </div></div>
+    <div><div class="ptitle"><span class="pn">PRICE ALERTS</span></div>
+    <div class="al-wrap">
+      <div class="al-row">
+        <select class="al-sel" id="al-type"><option value="buy">BUY</option><option value="sell">SELL</option></select>
+        <input class="al-inp" type="number" id="al-price" placeholder="Target price…" step="any">
+        <button class="al-btn" onclick="addAlert()">SET</button>
+      </div>
+      <div class="al-list" id="al-list"></div>
+    </div></div>
+    <div><div class="ptitle"><span class="pn">SIGNALS</span></div>
+      <div class="sigrow"><span class="sign">EMA20 vs EMA50</span><span class="badge neut" id="sig1">—</span></div>
+      <div class="sigrow"><span class="sign">PRICE vs EMA200</span><span class="badge neut" id="sig2">—</span></div>
+      <div class="sigrow"><span class="sign">TREND ALIGNMENT</span><span class="badge neut" id="sig3">—</span></div>
+      <div class="sigrow"><span class="sign">RSI (14)</span><span class="badge neut" id="sig-rsi">—</span></div>
+      <div class="sigrow"><span class="sign">FEAR & GREED</span><span class="badge neut" id="sig-fg">—</span></div>
+    </div>
+    <div><div class="ptitle"><span class="pn">CORRELATION</span><span class="ps">BTC · ETH</span></div>
+    <div class="corr-grid">
+      <div class="corr-cell"><div class="corr-sym">BITCOIN</div><div class="corr-p neutral" id="corr-btc-p">—</div><div class="corr-chg" id="corr-btc-c">—</div></div>
+      <div class="corr-cell"><div class="corr-sym">ETHEREUM</div><div class="corr-p neutral" id="corr-eth-p">—</div><div class="corr-chg" id="corr-eth-c">—</div></div>
+    </div></div>
+    <div><div class="ptitle"><span class="pn">FEAR & GREED</span></div>
+    <div class="fg-wrap">
+      <div class="fg-num" id="fg-num">—</div>
+      <div class="fg-lbl" id="fg-lbl">LOADING…</div>
+      <div class="fg-bar"><div class="fg-pin" id="fg-pin" style="left:50%"></div></div>
+      <div class="fg-ends"><span>FEAR</span><span>NEUTRAL</span><span>GREED</span></div>
+    </div></div>
+    <div><div class="ptitle"><span class="pn">TRADE NOTES</span></div>
+    <textarea class="notes" id="notes" placeholder="Analysis, targets, ideas… (auto-saved)"></textarea></div>
+    <div style="display:flex;flex-direction:column;">
+      <div class="ptitle"><span class="pn">NEWS & LINKS</span><button class="add-btn" onclick="openM()">+ ADD</button></div>
+      <div class="nlist" id="nlist"></div>
+    </div>
+  </div>
+</div>
+<div class="mbg" id="modal" onclick="if(event.target===this)closeM()">
+  <div class="mbox"><h3>// ADD LINK</h3>
+    <div class="fgg"><label>TITLE</label><input type="text" id="lt" placeholder="Article title…"></div>
+    <div class="fgg"><label>URL</label><input type="url" id="lu" placeholder="https://…"></div>
+    <div class="fgg"><label>SOURCE</label><input type="text" id="ls" placeholder="e.g. CoinTelegraph"></div>
+    <div class="fgg"><label>TYPE</label><select id="ltp"><option value="news">NEWS</option><option value="social">SOCIAL</option><option value="analysis">ANALYSIS</option></select></div>
+    <div class="mbtns"><button class="btn btng" onclick="closeM()">CANCEL</button><button class="btn btnp" onclick="addLink()">ADD</button></div>
+  </div>
+</div>
+<script>
+(function(){
+'use strict';
+var SYM='CCD',CG='concordium',DEC=5;
+var NK='ccd_notes',LK='ccd_links',HK='ccd_hold',AK='ccd_alerts';
+var livePrice=0;
+
+/* Clock */
+function tick(){var n=new Date(),ce=document.getElementById('clock'),de=document.getElementById('cdate');if(ce)ce.textContent=n.toLocaleTimeString('en-GB');if(de)de.textContent=n.toLocaleDateString('en-GB',{weekday:'short',year:'numeric',month:'short',day:'numeric'});}
+tick();setInterval(tick,1000);
+
+function $id(id){return document.getElementById(id);}
+function setText(id,v){var e=$id(id);if(e)e.textContent=v;}
+function setVC(id,v,c){var e=$id(id);if(e){e.textContent=v;if(c)e.className=c;}}
+function fmt(n){return n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':n.toFixed(2);}
+function fp(n){return n.toFixed(DEC);}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+/* Canvas */
+var cv,ctx,wrap,candles=[],vS=0,vE=0,drag=false,dragX=0,dragVS=0,pinchD=0;
+var dpr=window.devicePixelRatio||1;
+var COL={BG:'#0d1420',GR:'rgba(30,47,74,0.5)',UP:'#00e8a0',DN:'#ff3d6b',VU:'rgba(0,232,160,0.18)',VD:'rgba(255,61,107,0.18)',E20:'#ffd24d',E50:'#00c8ff',E200:'#ff7b54',TXT:'#4a6a8a',CRS:'rgba(0,200,255,0.4)'};
+var PAD={t:14,r:74,b:26,vf:0.17};
+function cW(){return cv?cv.width/dpr:0;} function cH(){return cv?cv.height/dpr:0;}
+
+function initCanvas(){
+  cv=$id('cv');wrap=$id('wrap');if(!cv||!wrap)return;
+  ctx=cv.getContext('2d');resize();
+  if(window.ResizeObserver)new ResizeObserver(resize).observe(wrap);
+  else window.addEventListener('resize',resize);
+  cv.addEventListener('mousemove',onMM);cv.addEventListener('mouseleave',onML);cv.addEventListener('mousedown',onMD);
+  window.addEventListener('mouseup',function(){drag=false;});
+  cv.addEventListener('wheel',onWh,{passive:false});
+  cv.addEventListener('touchstart',onTS,{passive:true});cv.addEventListener('touchmove',onTM,{passive:false});
+  cv.addEventListener('touchend',function(){drag=false;});
+}
+function resize(){
+  if(!cv||!wrap)return;
+  var w=wrap.clientWidth||400,h=wrap.clientHeight||400;
+  cv.style.width=w+'px';cv.style.height=h+'px';
+  cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  draw();drawRSI();
+}
+function ema(data,p){
+  var n=data.length;if(n<p)return new Array(n).fill(null);
+  var out=new Array(n).fill(null),s=0,k=2/(p+1);
+  for(var i=0;i<p;i++)s+=data[i].close;
+  var e=s/p;out[p-1]=e;
+  for(var i=p;i<n;i++){e=data[i].close*k+e*(1-k);out[i]=e;}
+  return out;
+}
+function calcRSI(data,period){
+  var n=data.length,out=new Array(n).fill(null);
+  if(n<period+1)return out;
+  var g=0,l=0;
+  for(var i=1;i<=period;i++){var d=data[i].close-data[i-1].close;if(d>0)g+=d;else l-=d;}
+  var ag=g/period,al=l/period;
+  out[period]=al===0?100:100-(100/(1+ag/al));
+  for(var i=period+1;i<n;i++){
+    var d=data[i].close-data[i-1].close,gg=d>0?d:0,ll=d<0?-d:0;
+    ag=(ag*(period-1)+gg)/period;al=(al*(period-1)+ll)/period;
+    out[i]=al===0?100:100-(100/(1+ag/al));
+  }
+  return out;
+}
+function pY(p,mn,mx,pt,ph){return pt+ph-((p-mn)/(mx-mn))*ph;}
+function iX(i){var cw=cW()-PAD.r,cnt=vE-vS;return((i-vS+0.5)/cnt)*cw;}
+
+function draw(){
+  if(!cv||!ctx||!candles.length)return;
+  var w=cW(),h=cH();
+  var vs=Math.max(0,Math.floor(vS)),ve=Math.min(candles.length,Math.ceil(vE));
+  if(ve<=vs)return;
+  var ph=h*(1-PAD.vf)-PAD.t-PAD.b,voh=h*PAD.vf,pt=PAD.t,vot=h-voh,cw=w-PAD.r;
+  var mn=Infinity,mx=-Infinity;
+  for(var i=vs;i<ve;i++){if(candles[i].low<mn)mn=candles[i].low;if(candles[i].high>mx)mx=candles[i].high;}
+  var pd=(mx-mn)*0.06;mn-=pd;mx+=pd;if(mx<=mn)mx=mn+0.01;
+  var mv=0;for(var i=vs;i<ve;i++)if(candles[i].volume>mv)mv=candles[i].volume;if(!mv)mv=1;
+  ctx.fillStyle=COL.BG;ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle=COL.GR;ctx.lineWidth=0.5;ctx.fillStyle=COL.TXT;ctx.font='10px monospace';ctx.textAlign='right';
+  for(var g=0;g<=5;g++){var gy=pt+(ph/5)*g;ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(cw,gy);ctx.stroke();ctx.fillText((mx-(mx-mn)/5*g).toFixed(DEC),w-4,gy+3);}
+  ctx.strokeStyle=COL.GR;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,vot);ctx.lineTo(cw,vot);ctx.stroke();
+  var le=Math.max(1,Math.floor((ve-vs)/7));ctx.fillStyle=COL.TXT;ctx.textAlign='center';
+  for(var i=vs;i<ve;i+=le){var dd=new Date(candles[i].time*1000);ctx.fillText(dd.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}),iX(i),h-5);}
+  var bw=Math.max(1,(cw/(ve-vs))*0.72);
+  var e20=ema(candles,20),e50=ema(candles,50),e200=ema(candles,200);
+  function drawLine(arr,col,lw){ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();var st=false;for(var i=vs;i<ve;i++){if(arr[i]==null)continue;var x=iX(i),y=pY(arr[i],mn,mx,pt,ph);if(!st){ctx.moveTo(x,y);st=true;}else ctx.lineTo(x,y);}ctx.stroke();}
+  drawLine(e200,COL.E200,1.8);drawLine(e50,COL.E50,1.4);drawLine(e20,COL.E20,1.4);
+  for(var i=vs;i<ve;i++){var cc=candles[i],vx=iX(i),vy=vot+voh-(cc.volume/mv)*voh*0.88;ctx.fillStyle=cc.close>=cc.open?COL.VU:COL.VD;ctx.fillRect(vx-bw/2,vy,bw,vot-vy);}
+  for(var i=vs;i<ve;i++){
+    var cc=candles[i],x=iX(i),col=cc.close>=cc.open?COL.UP:COL.DN;
+    var oY=pY(cc.open,mn,mx,pt,ph),cY=pY(cc.close,mn,mx,pt,ph),hY=pY(cc.high,mn,mx,pt,ph),lY=pY(cc.low,mn,mx,pt,ph);
+    ctx.strokeStyle=col;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,hY);ctx.lineTo(x,lY);ctx.stroke();
+    ctx.fillStyle=col;ctx.fillRect(x-bw/2,Math.min(oY,cY),bw,Math.max(1,Math.abs(cY-oY)));
+  }
+  if(ve>0){var lc=candles[ve-1],ly=pY(lc.close,mn,mx,pt,ph),lco=lc.close>=lc.open?COL.UP:COL.DN;ctx.strokeStyle=lco;ctx.lineWidth=0.8;ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(0,ly);ctx.lineTo(cw,ly);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=lco;ctx.fillRect(cw,ly-9,PAD.r,18);ctx.fillStyle='#000';ctx.textAlign='center';ctx.font='bold 9px monospace';ctx.fillText(fp(lc.close),cw+PAD.r/2,ly+3);}
+  drawAlertLines(mn,mx,pt,ph,cw);
+}
+
+function drawAlertLines(mn,mx,pt,ph,cw){
+  getAlerts().forEach(function(al){
+    var p=+al.price;if(!p)return;
+    var y=pY(p,mn,mx,pt,ph);if(y<PAD.t||y>pt+ph)return;
+    var col=al.type==='buy'?'#00e8a0':'#ff3d6b';
+    ctx.strokeStyle=col;ctx.lineWidth=1;ctx.setLineDash([5,4]);
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(cw,y);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=col;ctx.font='bold 9px monospace';ctx.textAlign='left';
+    ctx.fillText((al.type==='buy'?'▲ ':' ▼ ')+fp(p),4,y-3);
+  });
+  ctx.textAlign='right';
+}
+
+/* RSI */
+function drawRSI(){
+  var rp=document.querySelector('.rsi-panel'),rcv=$id('rsi-cv');
+  if(!rp||!rcv||!candles.length)return;
+  var w=rp.clientWidth||400,h=72;
+  rcv.style.width=w+'px';rcv.style.height=h+'px';
+  rcv.width=Math.round(w*dpr);rcv.height=Math.round(h*dpr);
+  var rc=rcv.getContext('2d');rc.setTransform(dpr,0,0,dpr,0,0);
+  var vs=Math.max(0,Math.floor(vS)),ve=Math.min(candles.length,Math.ceil(vE));
+  var cw=w-PAD.r,rsiArr=calcRSI(candles,14);
+  rc.fillStyle=COL.BG;rc.fillRect(0,0,w,h);
+  rc.fillStyle=COL.TXT;rc.font='9px monospace';rc.textAlign='left';rc.fillText('RSI(14)',4,10);
+  var y70=pY(70,0,100,4,h-8),y30=pY(30,0,100,4,h-8);
+  rc.fillStyle='rgba(255,61,107,0.06)';rc.fillRect(0,0,cw,y70);
+  rc.fillStyle='rgba(0,232,160,0.06)';rc.fillRect(0,y30,cw,h-y30);
+  rc.strokeStyle='rgba(255,61,107,0.25)';rc.lineWidth=0.5;rc.setLineDash([3,3]);
+  rc.beginPath();rc.moveTo(0,y70);rc.lineTo(cw,y70);rc.stroke();
+  rc.strokeStyle='rgba(0,232,160,0.25)';rc.beginPath();rc.moveTo(0,y30);rc.lineTo(cw,y30);rc.stroke();
+  rc.setLineDash([]);
+  rc.fillStyle='rgba(255,61,107,0.5)';rc.textAlign='right';rc.font='8px monospace';rc.fillText('70',cw-2,y70-2);
+  rc.fillStyle='rgba(0,232,160,0.5)';rc.fillText('30',cw-2,y30+8);
+  rc.strokeStyle='#e8823a';rc.lineWidth=1.5;rc.beginPath();
+  var st=false;
+  for(var i=vs;i<ve;i++){if(rsiArr[i]==null)continue;var x=((i-vs+0.5)/(ve-vs))*cw,y=pY(rsiArr[i],0,100,4,h-8);if(!st){rc.moveTo(x,y);st=true;}else rc.lineTo(x,y);}
+  rc.stroke();
+  var lastRSI=null;for(var i=ve-1;i>=0;i--){if(rsiArr[i]!=null){lastRSI=rsiArr[i];break;}}
+  if(lastRSI!==null){
+    var col=lastRSI>70?'#ff3d6b':lastRSI<30?'#00e8a0':'#e8823a';
+    rc.fillStyle=col;rc.textAlign='right';rc.font='bold 10px monospace';rc.fillText(lastRSI.toFixed(1),w-4,10);
+    var sb=$id('sig-rsi');
+    if(sb){sb.textContent=lastRSI.toFixed(1)+' '+(lastRSI>70?'OVERBOUGHT':lastRSI<30?'OVERSOLD':'NEUTRAL');sb.className='badge '+(lastRSI>70?'bear':lastRSI<30?'bull':'neut');}
+  }
+}
+
+function crosshair(mx,my){
+  if(!candles.length)return;
+  var w=cW(),h=cH(),cw=w-PAD.r,cnt=vE-vS;
+  var ci=Math.max(0,Math.min(candles.length-1,Math.round((mx/cw)*cnt+vS-0.5)));
+  draw();
+  ctx.strokeStyle=COL.CRS;ctx.lineWidth=0.8;ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(iX(ci),0);ctx.lineTo(iX(ci),cH());ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,my);ctx.lineTo(cw,my);ctx.stroke();
+  ctx.setLineDash([]);
+  var cc=candles[ci],up=cc.close>=cc.open;
+  var t=$id('tip');
+  var ds=new Date(cc.time*1000).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  t.innerHTML='<b style="color:#e8823a">'+ds+'</b><br>O:<span style="color:'+(up?'#00e8a0':'#ff3d6b')+'"> '+fp(cc.open)+'</span> H:<span style="color:#00e8a0"> '+fp(cc.high)+'</span><br>L:<span style="color:#ff3d6b"> '+fp(cc.low)+'</span> C:<span style="color:'+(up?'#00e8a0':'#ff3d6b')+'"> '+fp(cc.close)+'</span>'+(cc.volume?'<br>Vol:<span style="color:var(--muted)"> '+fmt(cc.volume)+'</span>':'');
+  t.style.display='block';
+  var tw=170,th=90;
+  t.style.left=(mx+14+tw>w?mx-tw-10:mx+14)+'px';t.style.top=(my+th>h?my-th-4:my+4)+'px';
+}
+function onMM(e){if(drag){doDrag(e.clientX);return;}var r=cv.getBoundingClientRect();crosshair(e.clientX-r.left,e.clientY-r.top);}
+function onML(){$id('tip').style.display='none';draw();}
+function onMD(e){drag=true;dragX=e.clientX;dragVS=vS;}
+function doDrag(cx){var cw=cW()-PAD.r,cnt=vE-vS,ns=Math.max(0,Math.min(candles.length-cnt,dragVS+(dragX-cx)/cw*cnt));vS=ns;vE=ns+cnt;draw();drawRSI();}
+function onWh(e){e.preventDefault();var r=cv.getBoundingClientRect(),mx=e.clientX-r.left,cw=cW()-PAD.r;var piv=(mx/cw)*(vE-vS)+vS,cnt=Math.round((vE-vS)*(e.deltaY>0?1.12:0.88));cnt=Math.max(10,Math.min(candles.length,cnt));var ns=Math.max(0,Math.min(candles.length-cnt,piv-(mx/cw)*cnt));vS=ns;vE=ns+cnt;draw();drawRSI();}
+function onTS(e){if(e.touches.length===1){drag=true;dragX=e.touches[0].clientX;dragVS=vS;}else if(e.touches.length===2){drag=false;pinchD=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}}
+function onTM(e){e.preventDefault();if(e.touches.length===1&&drag)doDrag(e.touches[0].clientX);else if(e.touches.length===2){var nd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);var cnt=Math.round((vE-vS)*(pinchD/nd));pinchD=nd;cnt=Math.max(10,Math.min(candles.length,cnt));var mid=(vS+vE)/2;vS=Math.max(0,mid-cnt/2);vE=Math.min(candles.length,vS+cnt);draw();drawRSI();}}
+
+function updateSignals(cd){
+  if(cd.length<4)return;
+  var e20=ema(cd,Math.min(20,cd.length)),e50=ema(cd,Math.min(50,cd.length)),e200=ema(cd,Math.min(200,cd.length));
+  var n=cd.length-1,p=cd[n].close,v20=e20[n],v50=e50[n],v200=e200[n];
+  function b(id,txt,cls){var e=$id(id);if(e){e.textContent=txt;e.className='badge '+cls;}}
+  if(v20&&v50)b('sig1',v20>v50?'BULL':'BEAR',v20>v50?'bull':'bear');else b('sig1','N/A','neut');
+  if(v200)b('sig2',p>v200?'ABOVE':'BELOW',p>v200?'bull':'bear');else b('sig2','N/A','neut');
+  if(v20&&v50&&v200){if(v20>v50&&v50>v200)b('sig3','BULL','bull');else if(v20<v50&&v50<v200)b('sig3','BEAR','bear');else b('sig3','MIXED','neut');}else b('sig3','N/A','neut');
+}
+
+/* Holdings */
+function initHoldings(){
+  var inp=$id('hold-amt');
+  try{inp.value=localStorage.getItem(HK)||'';}catch(e){}
+  inp.addEventListener('input',function(){
+    try{localStorage.setItem(HK,inp.value);}catch(e){}
+    updateHoldVal();storeForHome();
+  });
+  updateHoldVal();
+}
+function updateHoldVal(){
+  var amt=+($id('hold-amt').value)||0;
+  var val=amt*livePrice;
+  $id('hold-total').textContent=val>0?'$'+val.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}):'$0.00';
+}
+function storeForHome(){
+  try{
+    var all=JSON.parse(localStorage.getItem('portfolio_holdings')||'{}');
+    all[SYM]={amount:+($id('hold-amt').value)||0,price:livePrice};
+    localStorage.setItem('portfolio_holdings',JSON.stringify(all));
+  }catch(e){}
+}
+
+/* Alerts */
+function getAlerts(){try{return JSON.parse(localStorage.getItem(AK)||'[]');}catch(e){return[];}}
+function saveAlerts(a){try{localStorage.setItem(AK,JSON.stringify(a));}catch(e){}}
+window.addAlert=function(){
+  var p=+($id('al-price').value),t=$id('al-type').value;
+  if(!p)return;
+  var a=getAlerts();a.push({price:p,type:t});saveAlerts(a);$id('al-price').value='';renderAlerts();draw();
+};
+window.delAlert=function(i){var a=getAlerts();a.splice(i,1);saveAlerts(a);renderAlerts();draw();};
+function renderAlerts(){
+  var list=$id('al-list'),alerts=getAlerts();list.innerHTML='';
+  if(!alerts.length){list.innerHTML='<div style="font-family:monospace;font-size:10px;color:var(--muted);padding:4px 6px;">No alerts set</div>';return;}
+  alerts.forEach(function(al,i){
+    var d=document.createElement('div');d.className='al-item';
+    d.innerHTML='<span class="al-type '+(al.type==='buy'?'al-buy':'al-sell')+'">'+al.type.toUpperCase()+'</span><span>$'+fp(al.price)+'</span><button class="al-del" onclick="delAlert('+i+')">✕</button>';
+    list.appendChild(d);
+  });
+}
+
+/* Data */
+async function fetchOHLC(){return await fetchCG();}
+
+async function fetchCG(){
+  var url='https://api.coingecko.com/api/v3/coins/'+CG+'/market_chart?vs_currency=usd&days=365&interval=daily';
+  var res=await fetch(url);if(!res.ok)throw new Error('HTTP '+res.status);
+  var j=await res.json();if(!j.prices||!j.prices.length)throw new Error('No data');
+  var out=[];
+  for(var i=0;i<j.prices.length;i++){
+    var p=+j.prices[i][1],v=j.total_volumes[i]?+j.total_volumes[i][1]:0,prev=i>0?+j.prices[i-1][1]:p;
+    out.push({time:Math.floor(j.prices[i][0]/1000),open:prev,high:Math.max(p,prev),low:Math.min(p,prev),close:p,volume:v});
+  }
+  return out.sort(function(a,b){return a.time-b.time;});
+}
+
+async function loadChart(){
+  var ld=$id('loading');ld.innerHTML='<div class="spinner"></div>LOADING…';ld.style.display='flex';
+  try{
+    var cd=await fetchOHLC();if(!cd.length)throw new Error('Empty');
+    candles=cd;vS=0;vE=cd.length;ld.style.display='none';draw();drawRSI();updateSignals(cd);
+  }catch(err){
+    ld.innerHTML='<div style="color:#ff3d6b;font-family:monospace;font-size:11px;text-align:center;padding:20px">LOAD FAILED<br><span style="color:#4a6a8a;font-size:10px;">'+err.message+'</span><br><br><button onclick="loadChart()" style="background:transparent;border:1px solid #e8823a;color:#e8823a;padding:6px 14px;font-family:monospace;cursor:pointer;border-radius:3px;">RETRY</button></div>';
+  }
+}
+
+async function fetchPrice(){
+  try{
+    var res=await fetch('https://api.coingecko.com/api/v3/simple/price?ids='+CG+'&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true&include_24h_high=true&include_24h_low=true');
+    if(!res.ok)return;var j=await res.json(),d=j[CG];
+    livePrice=d.usd;
+    var p=d.usd,chg=d.usd_24h_change,vol=d.usd_24h_vol,mcap=d.usd_market_cap,hi=d.usd_24h_high||p,lo=d.usd_24h_low||p;
+    var up=chg>=0,sign=up?'+':'';
+    setText('h-price','$'+fp(p));setVC('h-chg',sign+chg.toFixed(2)+'%','hstat-val '+(up?'up':'down'));
+    setText('h-high','$'+fp(hi));setText('h-low','$'+fp(lo));setText('h-vol','$'+fmt(vol));
+    setVC('s-price','$'+fp(p),'sval neutral');setVC('s-chg',sign+chg.toFixed(2)+'%','sval '+(up?'up':'down'));
+    setVC('s-high','$'+fp(hi),'sval up');setVC('s-low','$'+fp(lo),'sval down');
+    setVC('s-vol','$'+fmt(vol),'sval neutral');setVC('s-mcap','$'+fmt(mcap),'sval neutral');
+    updateHoldVal();storeForHome();
+  }catch(e){}
+}
+
+async function fetchCorr(){
+  try{
+    var res=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true');
+    if(!res.ok)return;var j=await res.json();
+    var btc=j.bitcoin,eth=j.ethereum;
+    if(btc){var u=btc.usd_24h_change>=0;setText('corr-btc-p','$'+btc.usd.toFixed(0));setVC('corr-btc-c',(u?'+':'')+btc.usd_24h_change.toFixed(2)+'%','corr-chg '+(u?'up':'down'));}
+    if(eth){var u=eth.usd_24h_change>=0;setText('corr-eth-p','$'+eth.usd.toFixed(2));setVC('corr-eth-c',(u?'+':'')+eth.usd_24h_change.toFixed(2)+'%','corr-chg '+(u?'up':'down'));}
+  }catch(e){}
+}
+
+async function fetchFG(){
+  try{
+    var res=await fetch('https://api.alternative.me/fng/?limit=1');if(!res.ok)throw 0;
+    var d=(await res.json()).data[0],val=+d.value,lbl=d.value_classification;
+    setText('fg-num',val);setText('fg-lbl',lbl.toUpperCase());$id('fg-pin').style.left=val+'%';
+    $id('fg-num').style.color=val<=25?'#ff3d6b':val<=45?'#ff7b54':val<=55?'#ffd24d':val<=75?'#00c8ff':'#00e8a0';
+    var s=$id('sig-fg');s.textContent=val+' – '+lbl.split(' ')[0].toUpperCase();s.className='badge '+(val<40?'bear':val>60?'bull':'neut');
+  }catch(e){setText('fg-lbl','UNAVAILABLE');}
+}
+
+/* Links */
+var DLINKS=[
+  {title:'CCD on CoinGecko',url:'https://www.coingecko.com/en/coins/concordium0',src:'CoinGecko',type:'analysis',date:'PINNED'},
+  {title:'CCD on TradingView',url:'https://www.tradingview.com/symbols/CCDUSD/',src:'TradingView',type:'analysis',date:'PINNED'},
+  {title:'CCD News',url:'https://cointelegraph.com/tags/ccd',src:'CoinTelegraph',type:'news',date:'PINNED'},
+  {title:'CCD Reddit',url:'https://www.reddit.com/search/?q=CCD',src:'Reddit',type:'social',date:'PINNED'},
+  {title:'CCD on X',url:'https://twitter.com/search?q=%24CCD&f=live',src:'Twitter/X',type:'social',date:'PINNED'},
+];
+function getL(){try{var s=JSON.parse(localStorage.getItem(LK));return(s&&s.length)?s:DLINKS;}catch(e){return DLINKS;}}
+function saveL(a){try{localStorage.setItem(LK,JSON.stringify(a));}catch(e){}}
+function renderL(){
+  var links=getL(),el=$id('nlist');el.innerHTML='';
+  links.forEach(function(lk,i){
+    var d=document.createElement('div');d.className='nitem';
+    d.innerHTML='<div class="nmeta"><span class="nsrc">'+esc(lk.src)+'</span><span class="ntype t-'+lk.type+'">'+lk.type.toUpperCase()+'</span><span class="ndate">'+esc(lk.date||'')+'</span></div>'
+      +'<a href="'+esc(lk.url)+'" target="_blank" rel="noopener noreferrer">'+esc(lk.title)+'</a>'
+      +'<div class="ndel" onclick="delL('+i+')">✕</div>';
+    el.appendChild(d);
+  });
+}
+window.delL=function(i){var a=getL();a.splice(i,1);saveL(a);renderL();};
+window.openM=function(){$id('modal').classList.add('open');setTimeout(function(){$id('lt').focus();},60);};
+window.closeM=function(){$id('modal').classList.remove('open');['lt','lu','ls'].forEach(function(id){$id(id).value='';}); $id('ltp').value='news';};
+window.addLink=function(){
+  var t=$id('lt').value.trim(),u=$id('lu').value.trim(),s=$id('ls').value.trim()||'Source',tp=$id('ltp').value;
+  if(!t||!u){alert('Enter title and URL');return;}
+  var a=getL();a.unshift({title:t,url:u,src:s,type:tp,date:new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short'})});
+  saveL(a);renderL();closeM();
+};
+
+var ne=$id('notes');
+try{ne.value=localStorage.getItem(NK)||'';}catch(e){}
+ne.addEventListener('input',function(){try{localStorage.setItem(NK,ne.value);}catch(e){};});
+
+window.addEventListener('load',function(){
+  initCanvas();initHoldings();renderAlerts();renderL();
+  loadChart();fetchPrice();fetchFG();fetchCorr();
+  setInterval(fetchPrice,60000);setInterval(fetchFG,300000);setInterval(fetchCorr,60000);
+});
+})();
+</script>
+</body>
+</html>
